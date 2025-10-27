@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EasyLib</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f5f5f5;
+        --fg: #121212;
+        --card-bg: #ffffffaa;
+        --border: #d0d0d0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        padding: 1.5rem clamp(1.5rem, 4vw, 4rem);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+        font-weight: 600;
+      }
+
+      .actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+      }
+
+      .actions label {
+        background: #2f80ed;
+        color: #fff;
+        padding: 0.65rem 1.2rem;
+        border-radius: 999px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        white-space: nowrap;
+      }
+
+      .actions label:hover,
+      .actions label:focus {
+        transform: translateY(-1px);
+      }
+
+      #file-input {
+        display: none;
+      }
+
+      main {
+        flex: 1;
+        padding: 0 clamp(1.5rem, 4vw, 4rem) 2.5rem;
+      }
+
+      #library {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+      }
+
+      .empty-state {
+        margin-top: 4rem;
+        text-align: center;
+        color: #666;
+        font-size: 1rem;
+      }
+
+      .card {
+        background: var(--card-bg);
+        backdrop-filter: blur(6px);
+        border-radius: 18px;
+        padding: 1.1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: 0 20px 40px -35px rgba(0, 0, 0, 0.6);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 24px 45px -30px rgba(0, 0, 0, 0.6);
+      }
+
+      .preview {
+        position: relative;
+        padding-top: 130%;
+        border-radius: 12px;
+        background: #f0f0f0;
+        overflow: hidden;
+        cursor: pointer;
+      }
+
+      .preview img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        word-break: break-word;
+      }
+
+      .meta {
+        font-size: 0.75rem;
+        color: #888;
+      }
+
+      button.delete {
+        align-self: flex-start;
+        background: transparent;
+        border: none;
+        color: #d96a6a;
+        font-size: 0.8rem;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101014;
+          --fg: #f5f5f5;
+          --card-bg: rgba(24, 24, 30, 0.85);
+          --border: rgba(255, 255, 255, 0.08);
+        }
+
+        .preview {
+          background: #1c1c24;
+        }
+
+        .meta {
+          color: #9a9aa5;
+        }
+
+        .card {
+          border-color: var(--border);
+        }
+
+        button.delete {
+          color: #f08c8c;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>EasyLib</h1>
+      <div class="actions">
+        <label for="file-input">Import PDFs</label>
+        <input id="file-input" type="file" accept="application/pdf" multiple />
+      </div>
+    </header>
+    <main>
+      <div id="library" aria-live="polite"></div>
+      <p class="empty-state" hidden>
+        Import PDFs to build your personal library.
+      </p>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js" integrity="sha512-+UBaRdRPJw37sj8sVArl0p0IKbqzR6/Z6fW2pA3alTL8JY3G1nFFrt/7XuYZo+1n4hwVNwL7g5Iiy9O58e7znQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      const DB_NAME = "easylib";
+      const DB_VERSION = 1;
+      const STORE_NAME = "pdfs";
+
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.worker.min.js";
+
+      const fileInput = document.getElementById("file-input");
+      const library = document.getElementById("library");
+      const emptyState = document.querySelector(".empty-state");
+      let db;
+
+      function openDatabase() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+          request.onupgradeneeded = () => {
+            const database = request.result;
+            if (!database.objectStoreNames.contains(STORE_NAME)) {
+              const store = database.createObjectStore(STORE_NAME, {
+                keyPath: "id",
+                autoIncrement: true,
+              });
+              store.createIndex("addedAt", "addedAt");
+            }
+          };
+
+          request.onsuccess = () => {
+            db = request.result;
+            resolve(db);
+          };
+
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      function transaction(mode = "readonly") {
+        return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
+      }
+
+      async function loadLibrary() {
+        const store = transaction();
+        const request = store.getAll();
+        const items = await new Promise((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+
+        items.sort((a, b) => b.addedAt - a.addedAt);
+        library.innerHTML = "";
+        if (!items.length) {
+          emptyState.hidden = false;
+          return;
+        }
+        emptyState.hidden = true;
+        for (const item of items) {
+          renderCard(item);
+        }
+      }
+
+      function renderCard(item) {
+        const card = document.createElement("article");
+        card.className = "card";
+
+        const preview = document.createElement("div");
+        preview.className = "preview";
+        preview.title = "Open PDF";
+        const img = document.createElement("img");
+        img.alt = `Preview of ${item.title}`;
+        img.src = item.preview;
+        preview.appendChild(img);
+        preview.addEventListener("click", () => openPdf(item));
+
+        const title = document.createElement("div");
+        title.className = "title";
+        title.textContent = item.title;
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const date = new Date(item.addedAt);
+        meta.textContent = `Added ${date.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })}`;
+
+        const remove = document.createElement("button");
+        remove.className = "delete";
+        remove.type = "button";
+        remove.textContent = "Remove";
+        remove.addEventListener("click", () => deletePdf(item.id, card));
+
+        card.append(preview, title, meta, remove);
+        library.appendChild(card);
+      }
+
+      function openPdf(item) {
+        const blob = new Blob([item.data], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+
+      function deletePdf(id, card) {
+        const store = transaction("readwrite");
+        const request = store.delete(id);
+        request.onsuccess = () => {
+          card.remove();
+          if (!library.childElementCount) {
+            emptyState.hidden = false;
+          }
+        };
+      }
+
+      async function extractTitle(pdfDocument, fallback) {
+        try {
+          const metadata = await pdfDocument.getMetadata();
+          const title = metadata?.info?.Title || metadata?.metadata?.get("dc:title");
+          if (title && String(title).trim()) {
+            return String(title).trim();
+          }
+        } catch (error) {
+          console.warn("Unable to read metadata", error);
+        }
+        return fallback;
+      }
+
+      async function createPreview(pdfDocument) {
+        const page = await pdfDocument.getPage(1);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        const maxWidth = 300;
+        const scale = Math.min(1, maxWidth / viewport.width);
+        const scaledViewport = page.getViewport({ scale: viewport.scale * scale });
+
+        canvas.width = scaledViewport.width;
+        canvas.height = scaledViewport.height;
+
+        await page.render({ canvasContext: context, viewport: scaledViewport }).promise;
+        return canvas.toDataURL("image/png");
+      }
+
+      async function storePdf(item) {
+        return new Promise((resolve, reject) => {
+          const store = transaction("readwrite");
+          const request = store.add(item);
+          request.onsuccess = () => {
+            item.id = request.result;
+            resolve(item);
+          };
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function handleFiles(files) {
+        for (const file of files) {
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfDocument = await pdfjsLib
+              .getDocument({ data: arrayBuffer })
+              .promise;
+            const fallbackTitle = file.name.replace(/\.pdf$/i, "");
+            const title = await extractTitle(pdfDocument, fallbackTitle);
+            const preview = await createPreview(pdfDocument);
+
+            const item = {
+              title,
+              fileName: file.name,
+              data: arrayBuffer,
+              preview,
+              addedAt: Date.now(),
+            };
+
+            const stored = await storePdf(item);
+            renderCard(stored);
+            emptyState.hidden = true;
+          } catch (error) {
+            console.error("Failed to import", file.name, error);
+          }
+        }
+        fileInput.value = "";
+      }
+
+      fileInput.addEventListener("change", (event) => {
+        const { files } = event.target;
+        if (!files?.length) return;
+        handleFiles(files);
+      });
+
+      openDatabase()
+        .then(loadLibrary)
+        .catch((error) => {
+          console.error("Failed to open database", error);
+          emptyState.hidden = false;
+          emptyState.textContent =
+            "Unable to access storage. Check your browser permissions.";
+        });
+    </script>
+  </body>
+</html>
