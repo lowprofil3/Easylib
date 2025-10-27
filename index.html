@@ -12,11 +12,13 @@
     />
     <style>
       :root {
-        color-scheme: light dark;
-        --bg: #f5f5f5;
-        --fg: #121212;
-        --card-bg: #ffffffaa;
-        --border: #d0d0d0;
+        color-scheme: light;
+        --bg: #f7f9fc;
+        --fg: #1f2933;
+        --card-bg: #ffffff;
+        --border: #d7dfea;
+        --muted: #667085;
+        --accent: #2563eb;
       }
 
       * {
@@ -41,6 +43,8 @@
         gap: 1rem;
         align-items: center;
         justify-content: space-between;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.82));
       }
 
       header h1 {
@@ -56,20 +60,21 @@
       }
 
       .actions label {
-        background: #2f80ed;
-        color: #fff;
+        background: var(--accent);
+        color: #ffffff;
         padding: 0.65rem 1.2rem;
         border-radius: 999px;
         font-size: 0.95rem;
         font-weight: 600;
         cursor: pointer;
-        transition: transform 0.2s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
         white-space: nowrap;
       }
 
       .actions label:hover,
       .actions label:focus {
         transform: translateY(-1px);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
       }
 
       #file-input {
@@ -91,35 +96,35 @@
       .empty-state {
         margin-top: 4rem;
         text-align: center;
-        color: #666;
+        color: var(--muted);
         font-size: 1rem;
       }
 
       .card {
         background: var(--card-bg);
-        backdrop-filter: blur(6px);
         border-radius: 18px;
         padding: 1.1rem;
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        box-shadow: 0 20px 40px -35px rgba(0, 0, 0, 0.6);
+        border: 1px solid var(--border);
+        box-shadow: 0 18px 32px -24px rgba(15, 23, 42, 0.25);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
 
       .card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 24px 45px -30px rgba(0, 0, 0, 0.6);
+        box-shadow: 0 24px 45px -28px rgba(37, 99, 235, 0.25);
       }
 
       .preview {
         position: relative;
         padding-top: 130%;
         border-radius: 12px;
-        background: #f0f0f0;
+        background: #f1f5f9;
         overflow: hidden;
         cursor: pointer;
+        border: 1px solid var(--border);
       }
 
       .preview img {
@@ -140,41 +145,41 @@
 
       .meta {
         font-size: 0.75rem;
-        color: #888;
+        color: var(--muted);
       }
 
       button.delete {
         align-self: flex-start;
-        background: transparent;
-        border: none;
-        color: #d96a6a;
+        background: #eef2ff;
+        border: 1px solid rgba(37, 99, 235, 0.2);
+        border-radius: 999px;
+        color: var(--accent);
         font-size: 0.8rem;
         cursor: pointer;
-        padding: 0;
+        padding: 0.35rem 0.95rem;
+        transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
       }
 
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #101014;
-          --fg: #f5f5f5;
-          --card-bg: rgba(24, 24, 30, 0.85);
-          --border: rgba(255, 255, 255, 0.08);
-        }
+      button.delete:hover,
+      button.delete:focus {
+        transform: translateY(-1px);
+        background: rgba(37, 99, 235, 0.1);
+        color: #1d4ed8;
+      }
 
-        .preview {
-          background: #1c1c24;
-        }
+      button.delete:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.35);
+        outline-offset: 2px;
+      }
 
-        .meta {
-          color: #9a9aa5;
-        }
-
-        .card {
-          border-color: var(--border);
-        }
-
-        button.delete {
-          color: #f08c8c;
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
         }
       }
     </style>
@@ -194,7 +199,7 @@
       </p>
     </main>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js" integrity="sha512-+UBaRdRPJw37sj8sVArl0p0IKbqzR6/Z6fW2pA3alTL8JY3G1nFFrt/7XuYZo+1n4hwVNwL7g5Iiy9O58e7znQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js" integrity="sha512-hoZmP5l0sJQzHzkXQS3ZCj/H7bOn8JKmbHd/s2trPUoMcvPaBfLSE9/92cpwYzcXBaEtVT/aCQ9P97rkTSWqcw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
       const DB_NAME = "easylib";
       const DB_VERSION = 1;
@@ -207,6 +212,7 @@
       const library = document.getElementById("library");
       const emptyState = document.querySelector(".empty-state");
       let db;
+      let databaseReady;
 
       function openDatabase() {
         return new Promise((resolve, reject) => {
@@ -224,20 +230,34 @@
           };
 
           request.onsuccess = () => {
-            db = request.result;
-            resolve(db);
+            resolve(request.result);
           };
 
           request.onerror = () => reject(request.error);
         });
       }
 
-      function transaction(mode = "readonly") {
-        return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
+      function ensureDatabasePromise() {
+        if (!databaseReady) {
+          databaseReady = openDatabase();
+        }
+        return databaseReady;
+      }
+
+      async function ensureDatabase() {
+        if (!db) {
+          db = await ensureDatabasePromise();
+        }
+        return db;
+      }
+
+      async function getStore(mode = "readonly") {
+        const database = await ensureDatabase();
+        return database.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
       }
 
       async function loadLibrary() {
-        const store = transaction();
+        const store = await getStore();
         const request = store.getAll();
         const items = await new Promise((resolve, reject) => {
           request.onsuccess = () => resolve(request.result);
@@ -299,15 +319,19 @@
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
 
-      function deletePdf(id, card) {
-        const store = transaction("readwrite");
-        const request = store.delete(id);
-        request.onsuccess = () => {
-          card.remove();
-          if (!library.childElementCount) {
-            emptyState.hidden = false;
-          }
-        };
+      async function deletePdf(id, card) {
+        try {
+          const store = await getStore("readwrite");
+          const request = store.delete(id);
+          request.onsuccess = () => {
+            card.remove();
+            if (!library.childElementCount) {
+              emptyState.hidden = false;
+            }
+          };
+        } catch (error) {
+          console.error("Failed to delete PDF", error);
+        }
       }
 
       async function extractTitle(pdfDocument, fallback) {
@@ -341,8 +365,8 @@
       }
 
       async function storePdf(item) {
+        const store = await getStore("readwrite");
         return new Promise((resolve, reject) => {
-          const store = transaction("readwrite");
           const request = store.add(item);
           request.onsuccess = () => {
             item.id = request.result;
@@ -387,10 +411,15 @@
         handleFiles(files);
       });
 
-      openDatabase()
-        .then(loadLibrary)
+      databaseReady = ensureDatabasePromise();
+
+      databaseReady
+        .then((database) => {
+          db = database;
+          return loadLibrary();
+        })
         .catch((error) => {
-          console.error("Failed to open database", error);
+          console.error("Failed to initialize library", error);
           emptyState.hidden = false;
           emptyState.textContent =
             "Unable to access storage. Check your browser permissions.";
