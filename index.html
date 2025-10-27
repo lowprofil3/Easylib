@@ -12,12 +12,13 @@
     />
     <style>
       :root {
-        color-scheme: dark;
-        --bg: #050505;
-        --fg: #f5f5f5;
-        --card-bg: #111111;
-        --border: #2c2c2c;
-        --muted: #a8a8a8;
+        color-scheme: light;
+        --bg: #f7f9fc;
+        --fg: #1f2933;
+        --card-bg: #ffffff;
+        --border: #d7dfea;
+        --muted: #667085;
+        --accent: #2563eb;
       }
 
       * {
@@ -43,7 +44,7 @@
         align-items: center;
         justify-content: space-between;
         border-bottom: 1px solid var(--border);
-        background: linear-gradient(180deg, #0d0d0d, rgba(5, 5, 5, 0.92));
+        background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.82));
       }
 
       header h1 {
@@ -59,8 +60,8 @@
       }
 
       .actions label {
-        background: var(--fg);
-        color: var(--bg);
+        background: var(--accent);
+        color: #ffffff;
         padding: 0.65rem 1.2rem;
         border-radius: 999px;
         font-size: 0.95rem;
@@ -73,7 +74,7 @@
       .actions label:hover,
       .actions label:focus {
         transform: translateY(-1px);
-        box-shadow: 0 0 0 3px rgba(245, 245, 245, 0.15);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
       }
 
       #file-input {
@@ -101,27 +102,26 @@
 
       .card {
         background: var(--card-bg);
-        backdrop-filter: blur(6px);
         border-radius: 18px;
         padding: 1.1rem;
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
         border: 1px solid var(--border);
-        box-shadow: 0 20px 40px -35px rgba(0, 0, 0, 0.9);
+        box-shadow: 0 18px 32px -24px rgba(15, 23, 42, 0.25);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
 
       .card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 24px 45px -30px rgba(0, 0, 0, 0.6);
+        box-shadow: 0 24px 45px -28px rgba(37, 99, 235, 0.25);
       }
 
       .preview {
         position: relative;
         padding-top: 130%;
         border-radius: 12px;
-        background: #1e1e1e;
+        background: #f1f5f9;
         overflow: hidden;
         cursor: pointer;
         border: 1px solid var(--border);
@@ -150,24 +150,25 @@
 
       button.delete {
         align-self: flex-start;
-        background: transparent;
-        border: 1px solid var(--border);
+        background: #eef2ff;
+        border: 1px solid rgba(37, 99, 235, 0.2);
         border-radius: 999px;
-        color: var(--fg);
+        color: var(--accent);
         font-size: 0.8rem;
         cursor: pointer;
         padding: 0.35rem 0.95rem;
-        transition: transform 0.2s ease, background 0.2s ease;
+        transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
       }
 
       button.delete:hover,
       button.delete:focus {
         transform: translateY(-1px);
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(37, 99, 235, 0.1);
+        color: #1d4ed8;
       }
 
       button.delete:focus {
-        outline: 2px solid rgba(245, 245, 245, 0.35);
+        outline: 2px solid rgba(37, 99, 235, 0.35);
         outline-offset: 2px;
       }
 
@@ -198,7 +199,7 @@
       </p>
     </main>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js" integrity="sha512-+UBaRdRPJw37sj8sVArl0p0IKbqzR6/Z6fW2pA3alTL8JY3G1nFFrt/7XuYZo+1n4hwVNwL7g5Iiy9O58e7znQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js" integrity="sha512-hoZmP5l0sJQzHzkXQS3ZCj/H7bOn8JKmbHd/s2trPUoMcvPaBfLSE9/92cpwYzcXBaEtVT/aCQ9P97rkTSWqcw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
       const DB_NAME = "easylib";
       const DB_VERSION = 1;

@@ -7,7 +7,7 @@ EasyLib is a lightweight, browser-based PDF library that stores your uploaded fi
 - Extract titles from PDF metadata (with filename fallback).
 - Generate first-page previews powered by [Mozilla PDF.js](https://mozilla.github.io/pdf.js/).
 - Persist your library in the browser with IndexedDB for offline access.
-- Clean black-and-white interface with keyboard-friendly controls.
+- Clean light interface with keyboard-friendly controls.
 
 ## Getting Started
 1. Open `index.html` in any modern browser (Chrome, Edge, Firefox, or Safari).
@@ -18,7 +18,7 @@ EasyLib is a lightweight, browser-based PDF library that stores your uploaded fi
 
 ## Development Notes
 - All application logic lives in `index.html` for easy hosting on any static server.
-- The UI is intentionally monochrome for a distraction-free reading environment.
+- The UI uses a bright, high-contrast palette designed for clarity and readability.
 - To reset the local database during development, open the browser dev tools and delete the `easylib` IndexedDB database.
 
 ## License
