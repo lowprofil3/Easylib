@@ -380,8 +380,9 @@
         for (const file of files) {
           try {
             const arrayBuffer = await file.arrayBuffer();
+            const pdfData = arrayBuffer.slice(0);
             const pdfDocument = await pdfjsLib
-              .getDocument({ data: arrayBuffer })
+              .getDocument({ data: pdfData })
               .promise;
             const fallbackTitle = file.name.replace(/\.pdf$/i, "");
             const title = await extractTitle(pdfDocument, fallbackTitle);
