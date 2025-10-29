@@ -207,18 +207,24 @@
     <header>
       <h1>EasyLib</h1>
       <div class="actions">
-        <label for="file-input">Import PDFs</label>
-        <input id="file-input" type="file" accept="application/pdf" multiple />
+        <label for="file-input">Import PDFs or EPUBs</label>
+        <input
+          id="file-input"
+          type="file"
+          accept="application/pdf,application/epub+zip,.epub"
+          multiple
+        />
       </div>
     </header>
     <main>
       <div id="library" aria-live="polite"></div>
       <p class="empty-state" hidden>
-        Import PDFs to build your personal library.
+        Import PDFs or EPUBs to build your personal library.
       </p>
     </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js" integrity="sha512-hoZmP5l0sJQzHzkXQS3ZCj/H7bOn8JKmbHd/s2trPUoMcvPaBfLSE9/92cpwYzcXBaEtVT/aCQ9P97rkTSWqcw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.93/epub.min.js" integrity="sha512-6mQxV+VkNgsVKCnTDJJoQF3nAGgbjLN1+s0v7pXO6shhTmLhIfSsIApzXcULt3qErDpKaqKSPkGLDXloC3NQpA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
       const DB_NAME = "easylib";
       const DB_VERSION = 1;
@@ -301,12 +307,13 @@
 
         const preview = document.createElement("div");
         preview.className = "preview";
-        preview.title = "Open PDF";
+        const typeLabel = (item.type || "pdf").toUpperCase();
+        preview.title = `Open ${typeLabel}`;
         const img = document.createElement("img");
         img.alt = `Preview of ${item.title}`;
         img.src = item.preview;
         preview.appendChild(img);
-        preview.addEventListener("click", () => openPdf(item));
+        preview.addEventListener("click", () => openDocument(item));
 
         const title = document.createElement("input");
         title.className = "title-input";
@@ -324,7 +331,7 @@
           }
           title.disabled = true;
           try {
-            const updated = await renamePdf(item.id, newTitle);
+            const updated = await renameDocument(item.id, newTitle);
             if (updated) {
               item.title = updated.title;
               title.value = updated.title;
@@ -332,7 +339,7 @@
               title.value = item.title;
             }
           } catch (error) {
-            console.error("Failed to rename PDF", error);
+            console.error("Failed to rename document", error);
             title.value = item.title;
           } finally {
             title.disabled = false;
@@ -366,20 +373,23 @@
         remove.className = "delete";
         remove.type = "button";
         remove.textContent = "Remove";
-        remove.addEventListener("click", () => deletePdf(item.id, card));
+        remove.addEventListener("click", () => deleteDocument(item.id, card));
 
         card.append(preview, title, meta, remove);
         library.appendChild(card);
       }
 
-      function openPdf(item) {
-        const blob = new Blob([item.data], { type: "application/pdf" });
+      function openDocument(item) {
+        const type = item.type || "pdf";
+        const mimeType =
+          type === "epub" ? "application/epub+zip" : "application/pdf";
+        const blob = new Blob([item.data], { type: mimeType });
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
 
-      async function deletePdf(id, card) {
+      async function deleteDocument(id, card) {
         try {
           const store = await getStore("readwrite");
           const request = store.delete(id);
@@ -390,11 +400,11 @@
             }
           };
         } catch (error) {
-          console.error("Failed to delete PDF", error);
+          console.error("Failed to delete document", error);
         }
       }
 
-      async function extractTitle(pdfDocument, fallback) {
+      async function extractPdfTitle(pdfDocument, fallback) {
         try {
           const metadata = await pdfDocument.getMetadata();
           const title = metadata?.info?.Title || metadata?.metadata?.get("dc:title");
@@ -407,7 +417,7 @@
         return fallback;
       }
 
-      async function createPreview(pdfDocument) {
+      async function createPdfPreview(pdfDocument) {
         const page = await pdfDocument.getPage(1);
         const viewport = page.getViewport({ scale: 1.5 });
         const canvas = document.createElement("canvas");
@@ -424,7 +434,7 @@
         return canvas.toDataURL("image/png");
       }
 
-      async function storePdf(item) {
+      async function storeDocument(item) {
         const store = await getStore("readwrite");
         return new Promise((resolve, reject) => {
           const request = store.add(item);
@@ -436,7 +446,7 @@
         });
       }
 
-      async function renamePdf(id, newTitle) {
+      async function renameDocument(id, newTitle) {
         const store = await getStore("readwrite");
         return new Promise((resolve, reject) => {
           const getRequest = store.get(id);
@@ -455,17 +465,111 @@
         });
       }
 
+      async function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      async function extractEpubMetadata(arrayBuffer, fallback) {
+        if (typeof ePub !== "function") {
+          return { title: fallback, cover: null };
+        }
+        const book = ePub(arrayBuffer);
+        try {
+          const metadata = await book.loaded.metadata;
+          const title = metadata?.title?.trim() || fallback;
+          let cover = null;
+          try {
+            const coverUrl = await book.coverUrl();
+            if (coverUrl) {
+              const response = await fetch(coverUrl);
+              const blob = await response.blob();
+              cover = await blobToDataUrl(blob);
+              URL.revokeObjectURL(coverUrl);
+            }
+          } catch (error) {
+            console.warn("Unable to extract EPUB cover", error);
+          }
+          return { title, cover };
+        } catch (error) {
+          console.warn("Unable to read EPUB metadata", error);
+          return { title: fallback, cover: null };
+        } finally {
+          if (typeof book.destroy === "function") {
+            book.destroy();
+          }
+        }
+      }
+
+      function createEpubPlaceholder(title) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 220;
+        canvas.height = 320;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "#ede9fe";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = "#4c1d95";
+        context.font = "bold 40px Inter, sans-serif";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText("EPUB", canvas.width / 2, canvas.height / 2);
+        context.fillStyle = "#5b21b6";
+        context.font = "600 18px Inter, sans-serif";
+        const subtitle = (title || "").trim().slice(0, 18);
+        if (subtitle) {
+          context.fillText(subtitle, canvas.width / 2, canvas.height - 40);
+        }
+        return canvas.toDataURL("image/png");
+      }
+
+      function detectFileType(file) {
+        const name = file.name.toLowerCase();
+        if (file.type === "application/pdf" || name.endsWith(".pdf")) {
+          return "pdf";
+        }
+        if (
+          file.type === "application/epub+zip" ||
+          name.endsWith(".epub")
+        ) {
+          return "epub";
+        }
+        return null;
+      }
+
       async function handleFiles(files) {
         for (const file of files) {
           try {
+            const type = detectFileType(file);
+            if (!type) {
+              console.warn("Unsupported file type", file.name);
+              continue;
+            }
+
             const arrayBuffer = await file.arrayBuffer();
-            const pdfData = arrayBuffer.slice(0);
-            const pdfDocument = await pdfjsLib
-              .getDocument({ data: pdfData })
-              .promise;
-            const fallbackTitle = file.name.replace(/\.pdf$/i, "");
-            const title = await extractTitle(pdfDocument, fallbackTitle);
-            const preview = await createPreview(pdfDocument);
+            let title = file.name;
+            let preview = null;
+
+            if (type === "pdf") {
+              const pdfDocument = await pdfjsLib
+                .getDocument({ data: arrayBuffer.slice(0) })
+                .promise;
+              const fallbackTitle = file.name.replace(/\.pdf$/i, "");
+              title = await extractPdfTitle(pdfDocument, fallbackTitle);
+              preview = await createPdfPreview(pdfDocument);
+            } else {
+              const fallbackTitle = file.name.replace(/\.epub$/i, "");
+              const { title: epubTitle, cover } = await extractEpubMetadata(
+                arrayBuffer,
+                fallbackTitle
+              );
+              title = epubTitle;
+              preview =
+                cover || createEpubPlaceholder(epubTitle || fallbackTitle);
+            }
 
             const item = {
               title,
@@ -473,9 +577,10 @@
               data: arrayBuffer,
               preview,
               addedAt: Date.now(),
+              type,
             };
 
-            const stored = await storePdf(item);
+            const stored = await storeDocument(item);
             renderCard(stored);
             emptyState.hidden = true;
           } catch (error) {
